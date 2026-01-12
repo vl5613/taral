@@ -16,6 +16,7 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   applicationId: string;
+  orderId: number;
   paymentTerms: CreatePaymentTerm;
   orderDetails: {
     exportPort: string;
@@ -36,12 +37,13 @@ function SubmitTermsModal({
   isOpen,
   onClose,
   applicationId,
+  orderId,
   paymentTerms,
   orderDetails,
   counterpartyPrincipal,
   onSuccess,
 }: Props) {
-  const { isSignedIn, stxAddress } = useTaralContracts();
+  const { isSignedIn, stxAddress, submitPaymentTerms } = useTaralContracts();
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [txId, setTxId] = useState<string | null>(null);
   const [termsHash, setTermsHash] = useState<string | null>(null);
@@ -71,16 +73,29 @@ function SubmitTermsModal({
 
       setSubmitState("submitting");
 
-      // TODO: Call actual contract function to submit terms on-chain
-      // For now, simulate the submission
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Convert amounts to micro-units (assuming 6 decimals)
+      const downpaymentMicro = Math.floor((paymentTerms.downpaymentAmount || 0) * 1000000);
+      const balanceMicro = Math.floor((paymentTerms.balanceAmount || 0) * 1000000);
+      const durationDays = paymentTerms.paymentDuration || 30;
+      // Convert percentage to basis points (e.g., 5% = 500 basis points)
+      const interestBasisPoints = Math.floor((paymentTerms.interestPercentage || 0) * 100);
 
-      setTxId("0x" + hash.slice(0, 16) + "..."); // Simulated tx ID
+      // Call the actual contract function
+      const txData = await submitPaymentTerms(
+        orderId,
+        hash,
+        downpaymentMicro,
+        balanceMicro,
+        durationDays,
+        interestBasisPoints
+      );
+
+      setTxId(txData?.txId || "0x" + hash.slice(0, 16) + "...");
       setSubmitState("success");
       toast.success("Payment terms submitted on-chain!");
 
       if (onSuccess) {
-        onSuccess({ txId: hash, termsHash: hash });
+        onSuccess({ txId: txData?.txId || hash, termsHash: hash });
       }
     } catch (error: any) {
       console.error("Error submitting terms:", error);

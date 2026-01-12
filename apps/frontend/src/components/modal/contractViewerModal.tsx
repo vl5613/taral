@@ -37,7 +37,7 @@ function ContractViewerModal({
   userRole,
   onSignSuccess,
 }: Props) {
-  const { isSignedIn, stxAddress } = useTaralContracts();
+  const { isSignedIn, stxAddress, signAsExporter, signAsImporter, rejectOrder } = useTaralContracts();
   const [actionState, setActionState] = useState<ActionState>("idle");
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -101,9 +101,12 @@ function ContractViewerModal({
     setActionState("signing");
 
     try {
-      // TODO: Call the actual signing contract function
-      // For now, simulate the signing process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Call the appropriate signing function based on user role
+      if (userRole === "exporter") {
+        await signAsExporter(orderId);
+      } else {
+        await signAsImporter(orderId);
+      }
 
       setActionState("success");
       toast.success("Contract signed successfully!");
@@ -127,8 +130,8 @@ function ContractViewerModal({
     setActionState("rejecting");
 
     try {
-      // TODO: Call the actual rejection contract function
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Call the reject order contract function
+      await rejectOrder(orderId, rejectionReason);
 
       setActionState("success");
       toast.success("Contract rejected");

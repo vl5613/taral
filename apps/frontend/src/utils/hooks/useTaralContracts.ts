@@ -478,6 +478,246 @@ function useTaralContracts() {
     });
   }
 
+  /**
+   * Sign a purchase order as the exporter
+   * @param orderId - The order ID to sign
+   */
+  async function signAsExporter(orderId: number): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[0];
+      const contractName = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "sign-as-exporter",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Signed as exporter!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Signing cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Sign a purchase order as the importer
+   * @param orderId - The order ID to sign
+   */
+  async function signAsImporter(orderId: number): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[0];
+      const contractName = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "sign-as-importer",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Signed as importer!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Signing cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Reject a purchase order with a reason
+   * @param orderId - The order ID to reject
+   * @param reason - The rejection reason
+   */
+  async function rejectOrder(orderId: number, reason: string): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[0];
+      const contractName = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId), stringUtf8CV(reason)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "reject-order",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Order rejected!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Rejection cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Submit payment terms for a purchase order
+   * @param orderId - The order ID
+   * @param termsHash - Hash of the payment terms document
+   * @param downpaymentAmount - Downpayment amount in micro-units
+   * @param balanceAmount - Balance amount in micro-units
+   * @param paymentDurationDays - Payment duration in days
+   * @param interestRate - Interest rate in basis points (500 = 5%)
+   */
+  async function submitPaymentTerms(
+    orderId: number,
+    termsHash: string,
+    downpaymentAmount: number,
+    balanceAmount: number,
+    paymentDurationDays: number,
+    interestRate: number
+  ): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[0];
+      const contractName = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[1];
+
+      const termsHashBytes = hexToBytes(termsHash.startsWith("0x") ? termsHash.slice(2) : termsHash);
+
+      const functionArgs = [
+        uintCV(orderId),
+        bufferCV(termsHashBytes),
+        uintCV(downpaymentAmount),
+        uintCV(balanceAmount),
+        uintCV(paymentDurationDays),
+        uintCV(interestRate),
+      ];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "submit-payment-terms",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Payment terms submitted!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Payment terms submission cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Approve payment terms as the counterparty
+   * @param orderId - The order ID
+   */
+  async function approvePaymentTerms(orderId: number): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[0];
+      const contractName = TARAL_PURCHASE_ORDER_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "approve-payment-terms",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Payment terms approved!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Payment terms approval cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Get order status from storage contract
+   * @param orderId - The order ID
+   */
+  async function getOrderStatus(orderId: number) {
+    try {
+      const contractAddress = PURCHASE_ORDER_STORAGE_CONTRACT.split(".")[0];
+      const contractName = PURCHASE_ORDER_STORAGE_CONTRACT.split(".")[1];
+
+      const result: any = await fetchReadOnlyFunction({
+        network: network,
+        contractAddress,
+        contractName,
+        senderAddress: contractAddress,
+        functionArgs: [uintCV(orderId)],
+        functionName: "get-order-status",
+      });
+      return result;
+    } catch (e: any) {
+      console.error("Error fetching order status:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Get payment terms detail from storage contract
+   * @param orderId - The order ID
+   */
+  async function getPaymentTermsDetail(orderId: number) {
+    try {
+      const contractAddress = PURCHASE_ORDER_STORAGE_CONTRACT.split(".")[0];
+      const contractName = PURCHASE_ORDER_STORAGE_CONTRACT.split(".")[1];
+
+      const result: any = await fetchReadOnlyFunction({
+        network: network,
+        contractAddress,
+        contractName,
+        senderAddress: contractAddress,
+        functionArgs: [uintCV(orderId)],
+        functionName: "get-payment-terms-detail",
+      });
+      return result;
+    } catch (e: any) {
+      console.error("Error fetching payment terms:", e);
+      return null;
+    }
+  }
+
   return {
     // general variables
     stxAddress,
@@ -499,6 +739,15 @@ function useTaralContracts() {
     getCurrentOrderIdNonce,
     createVault,
     repayLoan,
+
+    // signing and approval functions
+    signAsExporter,
+    signAsImporter,
+    rejectOrder,
+    submitPaymentTerms,
+    approvePaymentTerms,
+    getOrderStatus,
+    getPaymentTermsDetail,
   };
 }
 export default useTaralContracts;
