@@ -119,7 +119,9 @@
         
         ;; Appends the order to importer and exporter data
         (unwrap! (contract-call? .taral-exporter append-order order-id exporter) ERR_CONTRACT_CALL)
-        (unwrap! (contract-call? .taral-importer append-order order-id importer) ERR_CONTRACT_CALL) 
+        (unwrap! (contract-call? .taral-importer append-order order-id importer) ERR_CONTRACT_CALL)
+        ;; Initialize order status tracking
+        (unwrap! (contract-call? .purchase-order-storage init-order-status order-id) ERR_PURCHASE_ORDER_STORAGE)
         ;; Logs the action
         (print {action: "initialize purchase order", exporter: exporter, order-id: order-id })
         ;; Increments the order id nonce value by 1
@@ -188,11 +190,228 @@
     (asserts! (< collateral-value debt-value) ERR_VAULT_NOT_UNDERCOLLATERALIZED)
 
     (print {collateral-value: collateral-value, debt-value: debt-value})
-    
+
     (try! (contract-call? .taral-purchase-order-nft transfer (get nft-id vault) (get borrower vault) tx-sender))
     ;; (unwrap! (contract-call? .wstx transfer (get collateral-stx vault) (get borrower vault) tx-sender) (err ERR_TRANSFER_FAILED))
     ;; (unwrap! (contract-call? .wbtc transfer (get collateral-btc vault) (get borrower vault) tx-sender) (err ERR_TRANSFER_FAILED))
     (unwrap! (contract-call? .purchase-order-storage delete-vault vault-id) ERR_PURCHASE_ORDER_STORAGE)
     (ok u0)
   )
+)
+
+;; ============================================
+;; Order Signing & Approval Functions
+;; ============================================
+
+;; Error codes for signing
+(define-constant ERR_ORDER_NOT_FOUND (err u301))
+(define-constant ERR_NOT_AUTHORIZED (err u302))
+(define-constant ERR_ALREADY_SIGNED (err u303))
+(define-constant ERR_ORDER_REJECTED (err u304))
+(define-constant ERR_INVALID_STATUS (err u305))
+
+;; Status constants
+(define-constant STATUS_PENDING u0)
+(define-constant STATUS_EXPORTER_SIGNED u1)
+(define-constant STATUS_IMPORTER_SIGNED u2)
+(define-constant STATUS_BOTH_SIGNED u3)
+(define-constant STATUS_REJECTED u4)
+(define-constant STATUS_COMPLETED u5)
+
+;; @Desc Get order status
+;; @Param order-id: order ID
+(define-read-only (get-order-status (order-id uint))
+  (contract-call? .purchase-order-storage get-order-status order-id)
+)
+
+;; @Desc Sign purchase order as exporter
+;; @Param order-id: order ID to sign
+(define-public (sign-as-exporter (order-id uint))
+  (let (
+    (order (unwrap! (contract-call? .purchase-order-storage get-purchase-order order-id) ERR_ORDER_NOT_FOUND))
+    (status-data (unwrap! (contract-call? .purchase-order-storage get-order-status order-id) ERR_ORDER_NOT_FOUND))
+    (exporter-id (get exporter-id order))
+    (caller-exporter-id (unwrap! (contract-call? .exporter-storage get-exporter-by-principal tx-sender) ERR_NOT_AUTHORIZED))
+  )
+    ;; Verify caller is the exporter
+    (asserts! (is-eq exporter-id caller-exporter-id) ERR_NOT_AUTHORIZED)
+    ;; Verify not already signed
+    (asserts! (not (get exporter-signed status-data)) ERR_ALREADY_SIGNED)
+    ;; Verify order not rejected
+    (asserts! (not (is-eq (get status status-data) STATUS_REJECTED)) ERR_ORDER_REJECTED)
+
+    ;; Determine new status
+    (let (
+      (new-status (if (get importer-signed status-data) STATUS_BOTH_SIGNED STATUS_EXPORTER_SIGNED))
+    )
+      (unwrap! (contract-call? .purchase-order-storage update-order-status
+        order-id
+        new-status
+        true
+        (get importer-signed status-data)
+        block-height
+        (get importer-signed-at status-data)
+        none
+      ) ERR_PURCHASE_ORDER_STORAGE)
+
+      (print {action: "exporter-signed", order-id: order-id, exporter: tx-sender, new-status: new-status})
+      (ok new-status)
+    )
+  )
+)
+
+;; @Desc Sign purchase order as importer
+;; @Param order-id: order ID to sign
+(define-public (sign-as-importer (order-id uint))
+  (let (
+    (order (unwrap! (contract-call? .purchase-order-storage get-purchase-order order-id) ERR_ORDER_NOT_FOUND))
+    (status-data (unwrap! (contract-call? .purchase-order-storage get-order-status order-id) ERR_ORDER_NOT_FOUND))
+    (importer-id (get importer-id order))
+    (caller-importer-id (unwrap! (contract-call? .importer-storage get-importer-by-principal tx-sender) ERR_NOT_AUTHORIZED))
+  )
+    ;; Verify caller is the importer
+    (asserts! (is-eq importer-id caller-importer-id) ERR_NOT_AUTHORIZED)
+    ;; Verify not already signed
+    (asserts! (not (get importer-signed status-data)) ERR_ALREADY_SIGNED)
+    ;; Verify order not rejected
+    (asserts! (not (is-eq (get status status-data) STATUS_REJECTED)) ERR_ORDER_REJECTED)
+
+    ;; Determine new status
+    (let (
+      (new-status (if (get exporter-signed status-data) STATUS_BOTH_SIGNED STATUS_IMPORTER_SIGNED))
+    )
+      (unwrap! (contract-call? .purchase-order-storage update-order-status
+        order-id
+        new-status
+        (get exporter-signed status-data)
+        true
+        (get exporter-signed-at status-data)
+        block-height
+        none
+      ) ERR_PURCHASE_ORDER_STORAGE)
+
+      (print {action: "importer-signed", order-id: order-id, importer: tx-sender, new-status: new-status})
+      (ok new-status)
+    )
+  )
+)
+
+;; @Desc Reject purchase order with reason
+;; @Param order-id: order ID to reject
+;; @Param reason: rejection reason
+(define-public (reject-order (order-id uint) (reason (string-utf8 500)))
+  (let (
+    (order (unwrap! (contract-call? .purchase-order-storage get-purchase-order order-id) ERR_ORDER_NOT_FOUND))
+    (status-data (unwrap! (contract-call? .purchase-order-storage get-order-status order-id) ERR_ORDER_NOT_FOUND))
+    (exporter-id (get exporter-id order))
+    (importer-id (get importer-id order))
+  )
+    ;; Verify caller is either exporter or importer
+    (let (
+      (caller-exporter-id (contract-call? .exporter-storage get-exporter-by-principal tx-sender))
+      (caller-importer-id (contract-call? .importer-storage get-importer-by-principal tx-sender))
+      (is-exporter (and (is-ok caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
+      (is-importer (and (is-ok caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
+    )
+      (asserts! (or is-exporter is-importer) ERR_NOT_AUTHORIZED)
+      ;; Verify order not already completed or rejected
+      (asserts! (not (is-eq (get status status-data) STATUS_COMPLETED)) ERR_INVALID_STATUS)
+      (asserts! (not (is-eq (get status status-data) STATUS_REJECTED)) ERR_ORDER_REJECTED)
+
+      (unwrap! (contract-call? .purchase-order-storage update-order-status
+        order-id
+        STATUS_REJECTED
+        (get exporter-signed status-data)
+        (get importer-signed status-data)
+        (get exporter-signed-at status-data)
+        (get importer-signed-at status-data)
+        (some reason)
+      ) ERR_PURCHASE_ORDER_STORAGE)
+
+      (print {action: "order-rejected", order-id: order-id, rejected-by: tx-sender, reason: reason})
+      (ok true)
+    )
+  )
+)
+
+;; @Desc Submit payment terms for an order
+;; @Param order-id: order ID
+;; @Param terms-hash: hash of detailed payment terms
+;; @Param downpayment-amount: downpayment amount in micro-units
+;; @Param balance-amount: balance amount in micro-units
+;; @Param payment-duration-days: payment duration in days
+;; @Param interest-rate: interest rate in basis points (e.g., 500 = 5%)
+(define-public (submit-payment-terms
+  (order-id uint)
+  (terms-hash (buff 256))
+  (downpayment-amount uint)
+  (balance-amount uint)
+  (payment-duration-days uint)
+  (interest-rate uint))
+  (let (
+    (order (unwrap! (contract-call? .purchase-order-storage get-purchase-order order-id) ERR_ORDER_NOT_FOUND))
+    (exporter-id (get exporter-id order))
+    (importer-id (get importer-id order))
+  )
+    ;; Verify caller is either exporter or importer
+    (let (
+      (caller-exporter-id (contract-call? .exporter-storage get-exporter-by-principal tx-sender))
+      (caller-importer-id (contract-call? .importer-storage get-importer-by-principal tx-sender))
+      (is-exporter (and (is-ok caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
+      (is-importer (and (is-ok caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
+    )
+      (asserts! (or is-exporter is-importer) ERR_NOT_AUTHORIZED)
+      (asserts! (> (len terms-hash) u0) ERR_EMPTY_HASH)
+      (asserts! (<= payment-duration-days u90) ERR_INVALID_LOAN_DURATION)
+
+      (unwrap! (contract-call? .purchase-order-storage add-payment-terms-detail
+        order-id
+        terms-hash
+        downpayment-amount
+        balance-amount
+        payment-duration-days
+        interest-rate
+        tx-sender
+      ) ERR_PURCHASE_ORDER_STORAGE)
+
+      (print {action: "payment-terms-submitted", order-id: order-id, submitted-by: tx-sender})
+      (ok true)
+    )
+  )
+)
+
+;; @Desc Approve payment terms as counterparty
+;; @Param order-id: order ID
+(define-public (approve-payment-terms (order-id uint))
+  (let (
+    (order (unwrap! (contract-call? .purchase-order-storage get-purchase-order order-id) ERR_ORDER_NOT_FOUND))
+    (terms (unwrap! (contract-call? .purchase-order-storage get-payment-terms-detail order-id) ERR_ORDER_NOT_FOUND))
+    (submitted-by (get submitted-by terms))
+    (exporter-id (get exporter-id order))
+    (importer-id (get importer-id order))
+  )
+    ;; Verify caller is the counterparty (not the one who submitted)
+    (let (
+      (caller-exporter-id (contract-call? .exporter-storage get-exporter-by-principal tx-sender))
+      (caller-importer-id (contract-call? .importer-storage get-importer-by-principal tx-sender))
+      (is-exporter (and (is-ok caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
+      (is-importer (and (is-ok caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
+    )
+      ;; Must be either exporter or importer
+      (asserts! (or is-exporter is-importer) ERR_NOT_AUTHORIZED)
+      ;; Must not be the one who submitted
+      (asserts! (not (is-eq tx-sender submitted-by)) ERR_NOT_AUTHORIZED)
+
+      (unwrap! (contract-call? .purchase-order-storage approve-payment-terms order-id) ERR_PURCHASE_ORDER_STORAGE)
+
+      (print {action: "payment-terms-approved", order-id: order-id, approved-by: tx-sender})
+      (ok true)
+    )
+  )
+)
+
+;; @Desc Get payment terms for an order
+;; @Param order-id: order ID
+(define-read-only (get-payment-terms (order-id uint))
+  (contract-call? .purchase-order-storage get-payment-terms-detail order-id)
 )

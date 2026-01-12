@@ -3,15 +3,51 @@
 (define-data-var order-id-nonce uint u10001)
 (define-data-var last-vault-id uint u0)
 
-(define-map order {id: uint} 
-  {    
+;; Order status constants
+(define-constant STATUS_PENDING u0)
+(define-constant STATUS_EXPORTER_SIGNED u1)
+(define-constant STATUS_IMPORTER_SIGNED u2)
+(define-constant STATUS_BOTH_SIGNED u3)
+(define-constant STATUS_REJECTED u4)
+(define-constant STATUS_COMPLETED u5)
+
+(define-map order {id: uint}
+  {
     exporter-id: uint,
     importer-id: uint,
     hash: (buff 256),
     payment-term: (string-utf8 200), ;; 30/60/90/120 Days, 50% Deposit, balance upon bill of lading
-    amount: uint,        
-    delivery-term: (string-utf8 10) ;; FOB CIF, CFR, 
-  }  
+    amount: uint,
+    delivery-term: (string-utf8 10) ;; FOB CIF, CFR,
+  }
+)
+
+;; Order status tracking
+(define-map order-status {id: uint}
+  {
+    status: uint,
+    exporter-signed: bool,
+    importer-signed: bool,
+    exporter-signed-at: uint,
+    importer-signed-at: uint,
+    rejection-reason: (optional (string-utf8 500)),
+    created-at: uint,
+    updated-at: uint
+  }
+)
+
+;; Payment terms detail storage
+(define-map payment-terms-detail {order-id: uint}
+  {
+    terms-hash: (buff 256),
+    downpayment-amount: uint,
+    balance-amount: uint,
+    payment-duration-days: uint,
+    interest-rate: uint,
+    submitted-by: principal,
+    approved-by-counterparty: bool,
+    submitted-at: uint
+  }
 )
 
 (define-map order-detail {id: uint} 
@@ -146,17 +182,122 @@
 
 ;; to filter out none from list [none none (some XXX) none]
 (define-private (is-valid-value
-    (value (optional 
+    (value (optional
         {
             exporter-id: uint,
             importer-id: uint,
             hash: (buff 256),
             payment-term: (string-utf8 200), ;; 30/60/90/120 Days, 50% Deposit, balance upon bill of lading
-            amount: uint,        
-            delivery-term: (string-utf8 10) ;; FOB CIF, CFR, 
+            amount: uint,
+            delivery-term: (string-utf8 10) ;; FOB CIF, CFR,
         })
     ))
-   
+
   (is-some value)
+)
+
+;; ============================================
+;; Order Status Functions
+;; ============================================
+
+;; @Desc get order status by ID
+;; @Param order-id: order ID of type uint
+(define-read-only (get-order-status (order-id uint))
+  (map-get? order-status {id: order-id})
+)
+
+;; @Desc initialize order status when order is created
+;; #[allow(unchecked_params)]
+;; #[allow(unchecked_data)]
+(define-public (init-order-status (order-id uint))
+  (ok (map-insert order-status
+    {id: order-id}
+    {
+      status: STATUS_PENDING,
+      exporter-signed: false,
+      importer-signed: false,
+      exporter-signed-at: u0,
+      importer-signed-at: u0,
+      rejection-reason: none,
+      created-at: block-height,
+      updated-at: block-height
+    }
+  ))
+)
+
+;; @Desc update order status
+;; #[allow(unchecked_params)]
+;; #[allow(unchecked_data)]
+(define-public (update-order-status
+  (order-id uint)
+  (new-status uint)
+  (exp-signed bool)
+  (imp-signed bool)
+  (exp-signed-at uint)
+  (imp-signed-at uint)
+  (rejection-reason (optional (string-utf8 500))))
+  (ok (map-set order-status
+    {id: order-id}
+    {
+      status: new-status,
+      exporter-signed: exp-signed,
+      importer-signed: imp-signed,
+      exporter-signed-at: exp-signed-at,
+      importer-signed-at: imp-signed-at,
+      rejection-reason: rejection-reason,
+      created-at: (default-to block-height (get created-at (map-get? order-status {id: order-id}))),
+      updated-at: block-height
+    }
+  ))
+)
+
+;; ============================================
+;; Payment Terms Detail Functions
+;; ============================================
+
+;; @Desc get payment terms detail by order ID
+;; @Param order-id: order ID of type uint
+(define-read-only (get-payment-terms-detail (order-id uint))
+  (map-get? payment-terms-detail {order-id: order-id})
+)
+
+;; @Desc add payment terms detail
+;; #[allow(unchecked_params)]
+;; #[allow(unchecked_data)]
+(define-public (add-payment-terms-detail
+  (order-id uint)
+  (terms-hash (buff 256))
+  (downpayment-amount uint)
+  (balance-amount uint)
+  (payment-duration-days uint)
+  (interest-rate uint)
+  (submitted-by principal))
+  (ok (map-insert payment-terms-detail
+    {order-id: order-id}
+    {
+      terms-hash: terms-hash,
+      downpayment-amount: downpayment-amount,
+      balance-amount: balance-amount,
+      payment-duration-days: payment-duration-days,
+      interest-rate: interest-rate,
+      submitted-by: submitted-by,
+      approved-by-counterparty: false,
+      submitted-at: block-height
+    }
+  ))
+)
+
+;; @Desc approve payment terms by counterparty
+;; #[allow(unchecked_params)]
+;; #[allow(unchecked_data)]
+(define-public (approve-payment-terms (order-id uint))
+  (let (
+    (current-terms (unwrap! (get-payment-terms-detail order-id) (err u404)))
+  )
+    (ok (map-set payment-terms-detail
+      {order-id: order-id}
+      (merge current-terms {approved-by-counterparty: true})
+    ))
+  )
 )
 
