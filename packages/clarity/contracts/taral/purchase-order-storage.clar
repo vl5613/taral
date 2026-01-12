@@ -236,19 +236,26 @@
   (exp-signed-at uint)
   (imp-signed-at uint)
   (rejection-reason (optional (string-utf8 500))))
-  (ok (map-set order-status
-    {id: order-id}
-    {
-      status: new-status,
-      exporter-signed: exp-signed,
-      importer-signed: imp-signed,
-      exporter-signed-at: exp-signed-at,
-      importer-signed-at: imp-signed-at,
-      rejection-reason: rejection-reason,
-      created-at: (default-to block-height (get created-at (map-get? order-status {id: order-id}))),
-      updated-at: block-height
-    }
-  ))
+  (let (
+    (existing-status (map-get? order-status {id: order-id}))
+    (existing-created-at (match existing-status
+      status-data (get created-at status-data)
+      block-height))
+  )
+    (ok (map-set order-status
+      {id: order-id}
+      {
+        status: new-status,
+        exporter-signed: exp-signed,
+        importer-signed: imp-signed,
+        exporter-signed-at: exp-signed-at,
+        importer-signed-at: imp-signed-at,
+        rejection-reason: rejection-reason,
+        created-at: existing-created-at,
+        updated-at: block-height
+      }
+    ))
+  )
 )
 
 ;; ============================================

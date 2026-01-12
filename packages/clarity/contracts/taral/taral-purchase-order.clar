@@ -310,8 +310,8 @@
     (let (
       (caller-exporter-id (contract-call? .exporter-storage get-exporter-by-principal tx-sender))
       (caller-importer-id (contract-call? .importer-storage get-importer-by-principal tx-sender))
-      (is-exporter (and (is-ok caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
-      (is-importer (and (is-ok caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
+      (is-exporter (and (is-some caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
+      (is-importer (and (is-some caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
     )
       (asserts! (or is-exporter is-importer) ERR_NOT_AUTHORIZED)
       ;; Verify order not already completed or rejected
@@ -357,8 +357,8 @@
     (let (
       (caller-exporter-id (contract-call? .exporter-storage get-exporter-by-principal tx-sender))
       (caller-importer-id (contract-call? .importer-storage get-importer-by-principal tx-sender))
-      (is-exporter (and (is-ok caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
-      (is-importer (and (is-ok caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
+      (is-exporter (and (is-some caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
+      (is-importer (and (is-some caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
     )
       (asserts! (or is-exporter is-importer) ERR_NOT_AUTHORIZED)
       (asserts! (> (len terms-hash) u0) ERR_EMPTY_HASH)
@@ -394,8 +394,8 @@
     (let (
       (caller-exporter-id (contract-call? .exporter-storage get-exporter-by-principal tx-sender))
       (caller-importer-id (contract-call? .importer-storage get-importer-by-principal tx-sender))
-      (is-exporter (and (is-ok caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
-      (is-importer (and (is-ok caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
+      (is-exporter (and (is-some caller-exporter-id) (is-eq exporter-id (unwrap-panic caller-exporter-id))))
+      (is-importer (and (is-some caller-importer-id) (is-eq importer-id (unwrap-panic caller-importer-id))))
     )
       ;; Must be either exporter or importer
       (asserts! (or is-exporter is-importer) ERR_NOT_AUTHORIZED)
