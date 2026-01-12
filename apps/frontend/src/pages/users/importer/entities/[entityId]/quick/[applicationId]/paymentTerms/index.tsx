@@ -1,19 +1,23 @@
 import ApplicationLayout from "@components/layouts/new_application_layout";
 import BottomBar from "@components/newApplicationBottom";
+import SubmitTermsModal from "@components/modal/submitTermsModal";
 import {
   CreatePaymentTerm,
   InterestType,
   PaymentTypes,
 } from "src/types/payment_terms";
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Control, Controller, UseFormSetValue, useForm } from "react-hook-form";
 import { NextPageContext } from "next/types";
 import { useRouter } from "next/router";
 import usePaymentTermForm from "@hooks/buyerApplication/usePaymentTerms";
+import useTermsSubmission from "@hooks/buyerApplication/useTermsSubmission";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as Yup from "yup";
 import { toast } from "sonner";
 import { CURRENCIES } from "@utils/lib/constants";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLink } from "@fortawesome/free-solid-svg-icons";
 
 type CustomRadioProps = {
   control: Control<CreatePaymentTerm, any>;
@@ -156,8 +160,14 @@ function Index({ ...props }) {
   const router = useRouter();
   const entityID = query.entityId;
   const applicationID = query.applicationId;
+  const [isSubmitModalOpen, setIsSubmitModalOpen] = useState(false);
   const { schemaValidation, handleDebouncedChange, queryResult } =
     usePaymentTermForm(applicationID);
+  const {
+    paymentTerms: submissionPaymentTerms,
+    orderDetails: submissionOrderDetails,
+    supplierInfo,
+  } = useTermsSubmission(applicationID);
   const {
     register,
     setValue,
@@ -645,6 +655,60 @@ function Index({ ...props }) {
           </div>
         </div>
       </form>
+
+      {/* Submit to Blockchain Button */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          padding: "20px",
+          borderTop: "1px solid #e0e0e0",
+          backgroundColor: "#f9f9f9",
+        }}
+      >
+        <button
+          type="button"
+          onClick={async () => {
+            const data = getValues();
+            try {
+              await schemaValidation.validate(data);
+              setIsSubmitModalOpen(true);
+            } catch (e) {
+              toast.error("Please complete all required fields before submitting on-chain");
+            }
+          }}
+          className="btn"
+          style={{
+            backgroundColor: "#1976d2",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <FontAwesomeIcon icon={faLink} />
+          Submit Terms On-Chain
+        </button>
+      </div>
+
+      {/* Submit Terms Modal */}
+      <SubmitTermsModal
+        isOpen={isSubmitModalOpen}
+        onClose={() => setIsSubmitModalOpen(false)}
+        applicationId={applicationID}
+        paymentTerms={submissionPaymentTerms || (getValues() as CreatePaymentTerm)}
+        orderDetails={
+          submissionOrderDetails || {
+            exportPort: "",
+            importPort: "",
+            products: [],
+          }
+        }
+        counterpartyPrincipal={supplierInfo?.supplierId || ""}
+        onSuccess={(txData) => {
+          toast.success("Payment terms submitted on-chain successfully!");
+          console.log("Terms submission tx:", txData);
+        }}
+      />
 
       <BottomBar onBack={onBack} onSubmit={onSubmit}></BottomBar>
     </ApplicationLayout>
