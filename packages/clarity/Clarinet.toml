@@ -160,6 +160,13 @@ path = "contracts/taral/taral-bank-storage.clar"
 path = "contracts/taral/taral-bank.clar"
 depends_on = ["taral-bank-storage"]
 
+[contracts.escrow-storage]
+path = "contracts/taral/escrow-storage.clar"
+
+[contracts.taral-escrow]
+path = "contracts/taral/taral-escrow.clar"
+depends_on = ["escrow-storage", "purchase-order-storage", "exporter-storage", "importer-storage", "token-susdt"]
+
 clarity_version = 2
 epoch = 2.1
 [repl.analysis]

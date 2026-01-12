@@ -4,6 +4,9 @@
 
 (define-map importer-by-principal principal uint)
 
+;; Reverse lookup: ID to principal
+(define-map principal-by-importer-id uint principal)
+
 (define-map importer-profile 
     {
         importer-id: uint
@@ -30,8 +33,12 @@
 )
 
 ;; Read-only functions
-(define-read-only (get-importer-by-principal (importer principal)) 
+(define-read-only (get-importer-by-principal (importer principal))
     (map-get? importer-by-principal importer)
+)
+
+(define-read-only (get-importer-principal-by-id (importer-id uint))
+    (map-get? principal-by-importer-id importer-id)
 )
 
 (define-read-only (get-importer-id-nonce)
@@ -85,8 +92,12 @@
 
 ;; #[allow(unchecked_params)]
 ;; #[allow(unchecked_data)]
-(define-public (add-importer (importer principal) (importer-id uint)) 
-    (ok (map-set importer-by-principal importer importer-id))
+(define-public (add-importer (importer principal) (importer-id uint))
+    (begin
+        (map-set importer-by-principal importer importer-id)
+        (map-set principal-by-importer-id importer-id importer)
+        (ok true)
+    )
 )
 
 ;; #[allow(unchecked_params)]
