@@ -61,9 +61,47 @@ export const TARAL_IMPORTER_CONTRACT = devnet
   ? "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.taral-importer"
   : "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.taral-importer";
 
+export const TARAL_EXPORTER_CONTRACT = devnet
+  ? "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.taral-exporter"
+  : "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.taral-exporter";
+
+export const TARAL_PURCHASE_ORDER_CONTRACT = devnet
+  ? "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.taral-purchase-order"
+  : process.env.NEXT_PUBLIC_TARAL_PURCHASE_ORDER_CONTRACT || "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.taral-purchase-order";
+
+export const PURCHASE_ORDER_STORAGE_CONTRACT = devnet
+  ? "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.purchase-order-storage"
+  : process.env.NEXT_PUBLIC_PURCHASE_ORDER_STORAGE_CONTRACT || "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.purchase-order-storage";
+
 export const SUSDT_CONTRACT = devnet
   ? "STRP7MYBHSMFH5EGN3HGX6KNQ7QBHVTBPF1669DW.susdt-token-v2"
   : process.env.NEXT_PUBLIC_SUSDT_CONTRACT || "";
+
+// Delivery terms (Incoterms)
+export const DELIVERY_TERMS = [
+  { code: "EXW", name: "Ex Works" },
+  { code: "FCA", name: "Free Carrier" },
+  { code: "CPT", name: "Carriage Paid To" },
+  { code: "CIP", name: "Carriage and Insurance Paid To" },
+  { code: "DAP", name: "Delivered at Place" },
+  { code: "DPU", name: "Delivered at Place Unloaded" },
+  { code: "DDP", name: "Delivered Duty Paid" },
+  { code: "FAS", name: "Free Alongside Ship" },
+  { code: "FOB", name: "Free on Board" },
+  { code: "CFR", name: "Cost and Freight" },
+  { code: "CIF", name: "Cost, Insurance, and Freight" },
+];
+
+// Payment terms options
+export const PAYMENT_TERMS = [
+  { code: "30", name: "30 Days" },
+  { code: "60", name: "60 Days" },
+  { code: "90", name: "90 Days" },
+  { code: "120", name: "120 Days" },
+  { code: "50_DEP", name: "50% Deposit, balance upon bill of lading" },
+  { code: "LC", name: "Letter of Credit" },
+  { code: "TT", name: "Telegraphic Transfer" },
+];
 
 export const CURRENCIES = [
   { cc: "AED", symbol: "\u062f.\u0625;", name: "UAE dirham" },
