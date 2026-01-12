@@ -29,7 +29,7 @@
     "@nestjs/microservices": "^10.0.4",
     "@nestjs/passport": "^8.2.1",
     "@nestjs/platform-express": "^10.0.4",
-    "@stacks/transactions": "^6.5.4",
+    "@stacks/transactions": "^6.17.0",
     "@types/lodash": "^4.14.195",
     "@types/passport-strategy": "^0.2.35",
     "amqp-connection-manager": "^4.1.13",

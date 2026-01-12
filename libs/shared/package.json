@@ -5,7 +5,7 @@
   "license": "ISC",
   "private": true,
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
@@ -15,10 +15,10 @@
   "devDependencies": {
     "@types/node": "20.10.0",
     "@types/uuid": "^9.0.8",
-    "typescript": "^5.1.6"
+    "typescript": "^5.6.0"
   },
   "dependencies": {
-    "@stacks/transactions": "^6.9.0",
+    "@stacks/transactions": "^6.17.0",
     "c32check": "^2.0.0",
     "chalk": "^4.1.2",
     "dayjs": "^1.11.9",

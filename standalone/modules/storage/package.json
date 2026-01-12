@@ -5,7 +5,7 @@
   "license": "ISC",
   "private": true,
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.json"

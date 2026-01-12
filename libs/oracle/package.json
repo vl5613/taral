@@ -5,7 +5,7 @@
   "license": "ISC",
   "private": true,
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "@types/node": "20.10.0",
-    "typescript": "^5.1.6"
+    "typescript": "^5.6.0"
   },
   "dependencies": {
     "@types/web3": "^1.2.2",

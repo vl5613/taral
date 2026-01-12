@@ -5,7 +5,7 @@
   "license": "ISC",
   "private": true,
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "scripts": {
     "unit-tests": "jest --runInBand --testPathIgnorePatterns storage.test.ts oracle.test.ts",
@@ -17,11 +17,11 @@
   },
   "devDependencies": {
     "jest": "^28.0.2",
-    "typescript": "^5.1.6"
+    "typescript": "^5.6.0"
   },
   "dependencies": {
     "@noble/secp256k1": "1.7.1",
-    "@stacks/common": "^6.10.0",
+    "@stacks/common": "^6.17.0",
     "lib-clarity-bin": "file:./../../libs/clarity-bin",
     "lib-infra": "file:./../../libs/infrastructure",
     "lib-oracle": "file:./../../libs/oracle",

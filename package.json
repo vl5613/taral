@@ -4,7 +4,7 @@
   "description": "Taral local development environment for clarity contracts",
   "main": "index.js",
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "private": "true",
   "workspaces": [
@@ -73,17 +73,17 @@
   },
   "homepage": "https://github.com/taraldefi/taral#readme",
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.12.0",
-    "@typescript-eslint/parser": "^6.12.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
     "codecov": "^3.8.1",
     "commitizen": "^4.3.0",
     "cz-conventional-changelog": "^3.3.0",
-    "eslint": "^8.54.0",
-    "eslint-config-prettier": "^9.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-prettier": "^5.0.1",
-    "lint-staged": "^15.1.0",
-    "prettier": "^3.0.0"
+    "eslint-plugin-prettier": "^5.2.1",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.4.0"
   },
   "lint-staged": {
     "*.ts": "eslint --cache --cache-location .eslintcache ./libs/**/* ./packages/unit-tests ./packages/integration-tests --fix"

@@ -5,7 +5,7 @@
   "license": "ISC",
   "private": true,
   "engines": {
-    "node": ">=14"
+    "node": ">=18"
   },
   "scripts": {
     "generate": "ts-node generate.ts",
@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "ts-node": "^10.9.1",
-    "typescript": "^5.1.6"
+    "typescript": "^5.6.0"
   },
   "dependencies": {
     "axios": "1.7.5",
