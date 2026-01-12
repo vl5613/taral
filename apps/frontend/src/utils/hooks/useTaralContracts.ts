@@ -23,7 +23,9 @@ import { fetchReadOnlyFunction } from "micro-stacks/api";
 import {
   TARAL_IMPORTER_CONTRACT,
   TARAL_PURCHASE_ORDER_CONTRACT,
-  PURCHASE_ORDER_STORAGE_CONTRACT
+  PURCHASE_ORDER_STORAGE_CONTRACT,
+  TARAL_ESCROW_CONTRACT,
+  ESCROW_STORAGE_CONTRACT
 } from "@utils/lib/constants";
 import { utf8ToBytes, hexToBytes } from "micro-stacks/common";
 
@@ -718,6 +720,328 @@ function useTaralContracts() {
     }
   }
 
+  // ========== ESCROW FUNCTIONS ==========
+
+  /**
+   * Create an escrow for a purchase order
+   * @param orderId - The purchase order ID
+   */
+  async function createEscrow(orderId: number): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "create-escrow",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Escrow created!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Escrow creation cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Fund the escrow (importer deposits funds)
+   * @param orderId - The purchase order ID
+   */
+  async function fundEscrow(orderId: number): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "fund-escrow",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Escrow funded!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Escrow funding cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Confirm shipment with tracking info
+   * @param orderId - The purchase order ID
+   * @param carrier - Shipping carrier name
+   * @param trackingNumber - Tracking number
+   * @param estimatedDelivery - Estimated delivery block height
+   * @param trackingHash - Hash of tracking document
+   */
+  async function confirmShipment(
+    orderId: number,
+    carrier: string,
+    trackingNumber: string,
+    estimatedDelivery: number,
+    trackingHash: string
+  ): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const trackingHashBytes = hexToBytes(trackingHash.startsWith("0x") ? trackingHash.slice(2) : trackingHash);
+
+      const functionArgs = [
+        uintCV(orderId),
+        stringUtf8CV(carrier),
+        stringUtf8CV(trackingNumber),
+        uintCV(estimatedDelivery),
+        bufferCV(trackingHashBytes),
+      ];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "confirm-shipment",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Shipment confirmed!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Shipment confirmation cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Upload proof of delivery document
+   * @param orderId - The purchase order ID
+   * @param docType - Document type (e.g., "bill-of-lading")
+   * @param docHash - Hash of the document
+   */
+  async function uploadDeliveryProof(
+    orderId: number,
+    docType: string,
+    docHash: string
+  ): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const docHashBytes = hexToBytes(docHash.startsWith("0x") ? docHash.slice(2) : docHash);
+
+      const functionArgs = [
+        uintCV(orderId),
+        stringUtf8CV(docType),
+        bufferCV(docHashBytes),
+      ];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "upload-delivery-proof",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Delivery proof uploaded!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Delivery proof upload cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Confirm delivery (importer confirms receipt)
+   * @param orderId - The purchase order ID
+   * @param deliveryHash - Hash of delivery confirmation
+   */
+  async function confirmDelivery(orderId: number, deliveryHash: string): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const deliveryHashBytes = hexToBytes(deliveryHash.startsWith("0x") ? deliveryHash.slice(2) : deliveryHash);
+
+      const functionArgs = [uintCV(orderId), bufferCV(deliveryHashBytes)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "confirm-delivery",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Delivery confirmed!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Delivery confirmation cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Release funds to exporter after delivery
+   * @param orderId - The purchase order ID
+   */
+  async function releaseFunds(orderId: number): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "release-funds",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Funds released!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Fund release cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Raise a dispute before fund release
+   * @param orderId - The purchase order ID
+   * @param reason - Dispute reason
+   */
+  async function raiseDispute(orderId: number, reason: string): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      const contractAddress = TARAL_ESCROW_CONTRACT.split(".")[0];
+      const contractName = TARAL_ESCROW_CONTRACT.split(".")[1];
+
+      const functionArgs = [uintCV(orderId), stringUtf8CV(reason)];
+
+      if (isSignedIn) {
+        await openContractCall({
+          contractAddress,
+          contractName,
+          functionName: "raise-dispute",
+          functionArgs: functionArgs,
+          postConditionMode: PostConditionMode.Allow,
+
+          onFinish: async (data: any) => {
+            console.log("Dispute raised!", data);
+            resolve(data);
+          },
+          onCancel: () => {
+            console.log("Dispute cancelled");
+            reject(new Error("User cancelled transaction"));
+          },
+        });
+      } else {
+        reject(new Error("User not signed in"));
+      }
+    });
+  }
+
+  /**
+   * Get escrow details from storage
+   * @param orderId - The order ID
+   */
+  async function getEscrow(orderId: number) {
+    try {
+      const contractAddress = ESCROW_STORAGE_CONTRACT.split(".")[0];
+      const contractName = ESCROW_STORAGE_CONTRACT.split(".")[1];
+
+      const result: any = await fetchReadOnlyFunction({
+        network: network,
+        contractAddress,
+        contractName,
+        senderAddress: contractAddress,
+        functionArgs: [uintCV(orderId)],
+        functionName: "get-escrow-by-order",
+      });
+      return result;
+    } catch (e: any) {
+      console.error("Error fetching escrow:", e);
+      return null;
+    }
+  }
+
+  /**
+   * Get shipment tracking info
+   * @param escrowId - The escrow ID
+   */
+  async function getShipmentTracking(escrowId: number) {
+    try {
+      const contractAddress = ESCROW_STORAGE_CONTRACT.split(".")[0];
+      const contractName = ESCROW_STORAGE_CONTRACT.split(".")[1];
+
+      const result: any = await fetchReadOnlyFunction({
+        network: network,
+        contractAddress,
+        contractName,
+        senderAddress: contractAddress,
+        functionArgs: [uintCV(escrowId)],
+        functionName: "get-shipment-tracking",
+      });
+      return result;
+    } catch (e: any) {
+      console.error("Error fetching shipment tracking:", e);
+      return null;
+    }
+  }
+
   return {
     // general variables
     stxAddress,
@@ -748,6 +1072,17 @@ function useTaralContracts() {
     approvePaymentTerms,
     getOrderStatus,
     getPaymentTermsDetail,
+
+    // escrow functions
+    createEscrow,
+    fundEscrow,
+    confirmShipment,
+    uploadDeliveryProof,
+    confirmDelivery,
+    releaseFunds,
+    raiseDispute,
+    getEscrow,
+    getShipmentTracking,
   };
 }
 export default useTaralContracts;
